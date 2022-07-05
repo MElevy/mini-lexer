@@ -18,9 +18,9 @@ class Lexer:
 
             if not matched:
                 if not silent:
-                    print('Token unmatchable:', code[1])
+                    print('Token unmatchable:', code[0])
                 if add_unlexable:
-                    results.append(('@Lexer.lexer~unlexable', code[1]))
+                    results.append(('@Lexer.lexer~unlexable', code[0]))
                 code = code[1:]
 
         return results

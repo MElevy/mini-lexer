@@ -1,33 +1,50 @@
 import re
 
+class Token:
+    def __init__(self, value, name, span):
+        self.value = value
+        self.span = span
+        self.name = name
+
+    def __repr__(self):
+        return 'Token(value = %s, name = \"%s\", span = %s)' % (self.value, self.name, self.span)
+
 class Lexer:
-    def __init__(self, rules):
-        self.rules = rules
+    def __init__(self, definitions, token_unrecognized):
+        self.definitions = definitions
+        self.token_unrecognized = token_unrecognized
+        self.lineno = 0
 
-    def lex(self, code, add_unlexable = False, silent = False):
-        matched = False
-        results = []
-        while code != '':
-            matched = False
-            for tokName, tokRegex in self.rules:
-                if (match := re.match(tokRegex, code)):
-                    results.append((tokName, code[:match.span()[1]]))
-                    code = code[match.span()[1]:]
-                    matched = True
+    def lex(self, text):
+        i = 0
+        tokens = []
+        while i < len(text):
+            for definition in self.definitions:
+                if (match := re.match(definition[1], text[i:])):
+                    span = match.span()
+                    res = definition[2](Token(text[i:i + span[1]], definition[0], (i, i + span[1])))
+                    i += span[1]
+                    if res != None: tokens.append(res)
                     break
+            else:
+                self.token_unrecognized(Token(text[i], 'UNRECOGNIZED', (i, i + 1)))
+                i += 1
 
-            if not matched:
-                if not silent:
-                    print('Token unmatchable:', code[0])
-                if add_unlexable:
-                    results.append(('@Lexer.lexer~unlexable', code[0]))
-                code = code[1:]
+        tokens.append(Token('', 'EOF', (i, i)))
 
-        return results
+        return tokens
 
 if __name__ == '__main__':
-    lexer = Lexer([
-        ('num', r'\d+'),
-        ('letter', r'[a-zA-Z]')
-    ])
-    print(lexer.lex('noise22ask'))
+    from pprint import pprint
+    def HANDLE_expr(t):
+        t.value = eval(t.value)
+        return t
+    def HANDLE_t(t): return t
+    def IGNORE_t(t): pass
+    def HANDLE_TOKNOTFOUND(t_val): raise Exception('Could not handle, ' + t_val)
+    new_lexer = Lexer([
+        ('EXPR', r'(\d+\.\d*|\d+)(( *)((\+|\*|/|-|==)( *)(\d+\.\d*|\d+)))*', HANDLE_expr),
+        ('COMMENT', r'#\.*', IGNORE_t),
+        ('WHITESPACE', r'( |\t)+', IGNORE_t)
+    ], HANDLE_TOKNOTFOUND)
+    pprint(new_lexer.lex(input('> ')))
